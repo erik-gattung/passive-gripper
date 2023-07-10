@@ -260,6 +260,7 @@ void InitializeContactPointSeeds(const PassiveGripper& psg,
   Log() << "Num seeds: " << out_X.size() << std::endl;
 }
 
+/*
 std::vector<ContactPointMetric> InitializeGCs(const PassiveGripper& psg,
                                               size_t num_candidates,
                                               size_t num_seeds) {
@@ -362,6 +363,160 @@ std::vector<ContactPointMetric> InitializeGCs(const PassiveGripper& psg,
               if (a.finger_distance == b.finger_distance)
                 return a.partial_min_wrench > b.partial_min_wrench;
               return a.finger_distance < b.finger_distance;
+            });
+
+  // Remove solutions that are not in the frontier
+  double partial_min_wrench = -1;
+  std::vector<ContactPointMetric> result;
+  for (size_t i = 0; i < prelim.size(); i++) {
+    if (prelim[i].partial_min_wrench >= partial_min_wrench) {
+      result.push_back(prelim[i]);
+      partial_min_wrench = prelim[i].partial_min_wrench;
+    }
+  }
+
+  return result;
+}
+*/
+
+// function to evaluate quality of contact point set, y is up
+double LineEvalutionMetricGC(const ContactPointMetric& c) {
+
+  double metrics[3];
+
+  // naively try out all combinations of points
+  for (int i = 0; i < 3; i++) {
+    ContactPoint upper1 = c.contact_points[3];
+    ContactPoint lower1 = c.contact_points[i];
+    ContactPoint upper2 = c.contact_points[(i+1)%3];
+    ContactPoint lower2 = c.contact_points[(i+2)%3];
+
+    // calculate scoring based on position of two points on line 1
+    double xDiff1 = pow(upper1.position.x() - lower1.position.x(), 2);
+    double yDiff1 = pow(upper1.position.y() - lower1.position.y(), 2);
+    double zDiff1 = pow(upper1.position.z() - lower1.position.z(), 2);
+    double firstScore = yDiff1 - xDiff1 - zDiff1;
+
+    // calculate scoring based on position of two points on line 2
+    double xDiff2 = pow(upper2.position.x() - lower2.position.x(), 2);
+    double yDiff2 = pow(upper2.position.y() - lower2.position.y(), 2);
+    double zDiff2 = pow(upper2.position.z() - lower2.position.z(), 2);
+    double secondScore = yDiff2 - xDiff2 - zDiff2;
+
+    //double meanDistance = (0.5 * (upper1.position + lower1.position) - 0.5 * (upper2.position - lower2.position)).norm();
+
+    metrics[i] = firstScore + secondScore; // + meanDistance;
+  }
+
+  return *std::max_element(std::begin(metrics), std::end(metrics));
+}
+
+// my replacement method
+std::vector<ContactPointMetric> InitializeGCs(const PassiveGripper& psg,
+                                              size_t num_candidates,
+                                              size_t num_seeds) {
+  const MeshDependentResource& mdr = psg.GetMDR();
+  const ContactSettings& settings = psg.GetContactSettings();
+  Eigen::Vector3d effector_pos =
+      robots::Forward(psg.GetParams().trajectory.front()).translation();
+
+  std::vector<int> FI;
+  std::vector<Eigen::Vector3d> X;
+
+  InitializeContactPointSeeds(psg, num_seeds, FI, X);
+
+  std::mt19937 gen;
+  std::uniform_int_distribution<int> dist(0, num_seeds - 1);
+
+  std::vector<ContactPointMetric> prelim;
+  prelim.reserve(num_candidates);
+  size_t total_iters = 0;
+
+  Log() << "Building distance field" << std::endl;
+  DiscreteDistanceField distance_field(mdr.V, mdr.F, 50, effector_pos);
+  Log() << "Done building distance field" << std::endl;
+#pragma omp parallel
+  {
+    size_t iters = 0;
+    while (true) {
+      iters++;
+      bool toContinue;
+#pragma omp critical
+      {
+        toContinue = prelim.size() < num_candidates;
+        if (iters >= 1000) {
+          total_iters += iters;
+          iters = 0;
+          if (total_iters > num_candidates * 1000 &&
+              total_iters > 10000 * prelim.size())  // success rate < 0.01%
+            toContinue = false;
+        }
+      }
+      if (!toContinue) break;
+
+      // Random 4 contact points
+      int pids[4] = {dist(gen), dist(gen), dist(gen), dist(gen)};
+      if (pids[0] == pids[1] || pids[1] == pids[2] || pids[0] == pids[2] || pids[0] == pids[3] || pids[1] == pids[3] || pids[2] == pids[3])
+        continue;
+      std::vector<ContactPoint> contact_points(4);
+      for (int i = 0; i < 4; i++) {
+        contact_points[i].position = X[pids[i]];
+        contact_points[i].normal = mdr.FN.row(FI[pids[i]]);
+        contact_points[i].fid = FI[pids[i]];
+      }
+
+      // Check Feasibility: Minimum Wrench
+      std::vector<ContactPoint> contact_cones = GenerateContactCones(
+          contact_points, settings.cone_res, settings.friction);
+
+      double partial_min_wrench =
+          ComputePartialMinWrenchQP(contact_cones,
+                                    mdr.center_of_mass,
+                                    -Eigen::Vector3d::UnitY(),
+                                    Eigen::Vector3d::Zero());
+
+      // Get at least a partial closure
+      if (partial_min_wrench == 0) continue;
+
+      // Check Feasiblity: Approach Direction
+      Eigen::Affine3d trans;
+      if (!CheckApproachDirection(contact_points, trans, settings.max_angle)) {
+        continue;
+      }
+
+      double min_wrench = ComputeMinWrenchQP(contact_cones, mdr.center_of_mass);
+
+      ContactPointMetric candidate;
+      candidate.contact_points = contact_points;
+      candidate.partial_min_wrench = partial_min_wrench;
+      candidate.min_wrench = min_wrench;
+      candidate.trans = trans;
+      candidate.finger_distance =
+          GetFingerDistance(distance_field, contact_points);
+#pragma omp critical
+      {
+        prelim.push_back(candidate);
+        if (prelim.size() % 500 == 0)
+          Log() << ">> prelim prog: " << prelim.size() << "/" << num_candidates
+                << std::endl;
+      }
+    }
+  }
+
+  if (prelim.size() < num_candidates) {
+    Error() << "low success rate. exit early. got: " << prelim.size()
+            << " expected: " << num_candidates << std::endl;
+  }
+
+  // sorting samples
+  std::sort(prelim.begin(),
+            prelim.end(),
+            [](const ContactPointMetric& a, const ContactPointMetric& b) {
+              double MetricA = LineEvalutionMetricGC(a);
+              double MetricB = LineEvalutionMetricGC(b);
+              if (MetricA == MetricB)
+                return a.partial_min_wrench > b.partial_min_wrench;
+              return MetricA > MetricB;
             });
 
   // Remove solutions that are not in the frontier
