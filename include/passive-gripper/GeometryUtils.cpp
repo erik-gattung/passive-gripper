@@ -382,6 +382,9 @@ std::vector<ContactPoint> GenerateContactCone(const ContactPoint& contactPoint,
   const auto& cp = contactPoint;
   GetPerp(cp.normal, B, T);
   double coeff = std::max(-cp.normal.dot(Eigen::Vector3d::UnitY()), 1e-3);
+  // coeff represents normal force on surface 
+  coeff = coeff + 0.5; // add active gripping force (in normal direction) 
+  //0.5 ~ 5N since gravity is modeled by unit vector (1 ~ 10 N)
   B *= friction * coeff;
   T *= friction * coeff;
   for (size_t j = 0; j < coneRes; j++) {
