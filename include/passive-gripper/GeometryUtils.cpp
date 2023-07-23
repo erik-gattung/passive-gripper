@@ -45,6 +45,7 @@
 
 #include "robots/Robots.h"
 
+double activeForce = 0.0;
 namespace psg {
 
 Fingers TransformFingers(const Fingers& fingers, const Eigen::Affine3d& trans) {
@@ -383,7 +384,9 @@ std::vector<ContactPoint> GenerateContactCone(const ContactPoint& contactPoint,
   GetPerp(cp.normal, B, T);
   double coeff = std::max(-cp.normal.dot(Eigen::Vector3d::UnitY()), 1e-3);
   // coeff represents normal force on surface 
-  coeff = coeff + 0.5; // add active gripping force (in normal direction) 
+  coeff = coeff + activeForce/10.0;
+  // std::cout << "active force" << activeForce << std::endl;
+  // coeff = coeff + 0.5; // add active gripping force (in normal direction) 
   //0.5 ~ 5N since gravity is modeled by unit vector (1 ~ 10 N)
   B *= friction * coeff;
   T *= friction * coeff;

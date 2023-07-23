@@ -16,6 +16,7 @@
 #include <passive-gripper/TopoOpt.h>
 #include "Components.h"
 
+
 namespace psg {
 namespace ui {
 
@@ -281,6 +282,8 @@ void MainUI::DrawContactPointPanel() {
     ContactSettings contact_settings = vm_.PSG().GetContactSettings();
     bool contact_update = false;
     bool finger_update = false;
+      contact_update |= ImGui::InputDouble(
+        "Active Grasping Force", &activeForce, 0.1, 0.5);
     contact_update |= ImGui::InputDouble(
         "Friction Coeff", &contact_settings.friction, 0.1, 0.5);
     contact_update |=

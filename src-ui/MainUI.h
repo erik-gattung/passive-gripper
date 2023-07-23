@@ -15,6 +15,9 @@
 
 #include "Layer.h"
 #include "ViewModel.h"
+# include "./passive-gripper/globalVariable.h"
+
+
 
 namespace psg {
 namespace ui {

@@ -31,6 +31,7 @@
 #include "models/ContactPoint.h"
 #include "models/MeshDependentResource.h"
 
+# include "globalVariable.h"
 namespace psg {
 
 /// <summary>
