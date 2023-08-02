@@ -260,7 +260,6 @@ void InitializeContactPointSeeds(const PassiveGripper& psg,
   Log() << "Num seeds: " << out_X.size() << std::endl;
 }
 
-/*
 std::vector<ContactPointMetric> InitializeGCs(const PassiveGripper& psg,
                                               size_t num_candidates,
                                               size_t num_seeds) {
@@ -377,8 +376,8 @@ std::vector<ContactPointMetric> InitializeGCs(const PassiveGripper& psg,
 
   return result;
 }
-*/
 
+/*
 // function to evaluate quality of contact point set, y is up
 double LineEvalutionMetricGC(const ContactPointMetric& c) {
 
@@ -531,6 +530,7 @@ std::vector<ContactPointMetric> InitializeGCs(const PassiveGripper& psg,
 
   return result;
 }
+*/
 
 void InitializeGripperBound(const PassiveGripper& psg,
                             Eigen::Vector3d& out_lb,

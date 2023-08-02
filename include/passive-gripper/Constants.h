@@ -34,48 +34,99 @@ const double kRadToDeg = 180. / kPi;
 // DH Parameters for UR5.
 // Adapted from
 // https://www.universal-robots.com/articles/ur/application-installation/dh-parameters-for-calculations-of-kinematics-and-dynamics/
-constexpr size_t kNumDOFs = 6;
-const double kRobotA[] = {0, -0.425, -0.39225, 0, 0, 0};
-const double kRobotD[] = {0.089159, 0, 0, 0.10915, 0.09465, 0.0823};
-const double kRobotAlpha[] = {kHalfPi, 0, 0, kHalfPi, -kHalfPi, 0};
+// https://frankaemika.github.io/docs/control_parameters.html
 
-const double kArmRadius = 0.0465;
-const Eigen::Affine3d kLocalTrans[6] = {
-    Eigen::Translation3d(-kArmRadius, -0.0892, -kArmRadius) *
-        Eigen::Scaling(2 * kArmRadius, kArmRadius + 0.0892, 2 * kArmRadius),
-    Eigen::Translation3d(-kArmRadius, -kArmRadius, kArmRadius) *
-        Eigen::Scaling(2 * kArmRadius + 0.425, 2 * kArmRadius, 2 * kArmRadius),
-    Eigen::Translation3d(-kArmRadius, -kArmRadius, 0.02 - kArmRadius) *
-        Eigen::Scaling(2 * kArmRadius + 0.39225,
-                       2 * kArmRadius,
-                       2 * kArmRadius),
-    Eigen::Translation3d(-kArmRadius, -kArmRadius, -kArmRadius) *
-        Eigen::Scaling(2 * kArmRadius, 2 * kArmRadius, 0.09465),
-    Eigen::Translation3d(-kArmRadius, -kArmRadius, -kArmRadius) *
-        Eigen::Scaling(2 * kArmRadius,
-                       2 * kArmRadius,
-                       kArmRadius + 0.0825 - 0.01),
-    Eigen::Translation3d(-kArmRadius, -kArmRadius, -0.01) *
-        Eigen::Scaling(2 * kArmRadius, 2 * kArmRadius, 0.01)};
+// constexpr size_t kNumDOFs = 6;
+// const double kRobotA[] = {0, -0.425, -0.39225, 0, 0, 0};
+// const double kRobotD[] = {0.089159, 0, 0, 0.10915, 0.09465, 0.0823};
+// const double kRobotAlpha[] = {kHalfPi, 0, 0, kHalfPi, -kHalfPi, 0};
+
+constexpr size_t kNumDOFs = 7;
+const double kRobotA[] = {0, 0, 0, 0.0825, -0.0825, 0, 0.088};
+const double kRobotD[] = {0.333, 0, 0.316, 0, 0.384, 0, 0};
+const double kRobotAlpha[] = {0, -kHalfPi, kHalfPi, kHalfPi, -kHalfPi, kHalfPi, kHalfPi};
+
+// const double kArmRadius = 0.0465;
+// const Eigen::Affine3d kLocalTrans[6] = {
+//     Eigen::Translation3d(-kArmRadius, -0.0892, -kArmRadius) *
+//         Eigen::Scaling(2 * kArmRadius, kArmRadius + 0.0892, 2 * kArmRadius),
+//     Eigen::Translation3d(-kArmRadius, -kArmRadius, kArmRadius) *
+//         Eigen::Scaling(2 * kArmRadius + 0.425, 2 * kArmRadius, 2 * kArmRadius),
+//     Eigen::Translation3d(-kArmRadius, -kArmRadius, 0.02 - kArmRadius) *
+//         Eigen::Scaling(2 * kArmRadius + 0.39225,
+//                        2 * kArmRadius,
+//                        2 * kArmRadius),
+//     Eigen::Translation3d(-kArmRadius, -kArmRadius, -kArmRadius) *
+//         Eigen::Scaling(2 * kArmRadius, 2 * kArmRadius, 0.09465),
+//     Eigen::Translation3d(-kArmRadius, -kArmRadius, -kArmRadius) *
+//         Eigen::Scaling(2 * kArmRadius,
+//                        2 * kArmRadius,
+//                        kArmRadius + 0.0825 - 0.01),
+//     Eigen::Translation3d(-kArmRadius, -kArmRadius, -0.01) *
+//         Eigen::Scaling(2 * kArmRadius, 2 * kArmRadius, 0.01)};
+
+const double kArmRadius = 0.08;
+const Eigen::Affine3d kLocalTrans[7] = {
+    Eigen::Translation3d(-kArmRadius, -kArmRadius, -0.333) *
+        Eigen::Scaling(2 * kArmRadius, 2 * kArmRadius, 0.333),
+    Eigen::Translation3d(0.0, 0.0, 0.0) *
+        Eigen::Scaling(0.0, 0.0, 0.0),
+    Eigen::Translation3d(-kArmRadius, -kArmRadius, -0.316) *
+        Eigen::Scaling(2 * kArmRadius, 2 * kArmRadius, 0.316),
+    Eigen::Translation3d(-kArmRadius, -kArmRadius, - kArmRadius) *
+        Eigen::Scaling(2 * kArmRadius + 0.0825, 2 * kArmRadius, 2 * kArmRadius),
+    Eigen::Translation3d(-kArmRadius, -kArmRadius, -0.384) *
+        Eigen::Scaling(2 * kArmRadius, 0.384 + kArmRadius, 2*kArmRadius),
+    Eigen::Translation3d(0.0, 0.0, 0.0) *
+        Eigen::Scaling(0.0, 0.0, 0.0),
+    Eigen::Translation3d(-0.088, -kArmRadius, -kArmRadius) *
+        Eigen::Scaling(kArmRadius + 0.088, 2 * kArmRadius, 2*kArmRadius)};
 
 // https://roboticscasual.com/files/ur5_rviz.txt
-const Eigen::Affine3d kUrdfTrans[6] = {
-    (Eigen::Affine3d)Eigen::Translation3d(0, 0, 0.089159),
-    Eigen::Translation3d(0, 0.13585, 0) *
-        Eigen::AngleAxisd(kHalfPi, Eigen::Vector3d::UnitY()),
-    (Eigen::Affine3d)Eigen::Translation3d(0, -0.1197, 0.425),
-    Eigen::Translation3d(0, 0, 0.39225) *
-        Eigen::AngleAxisd(kHalfPi, Eigen::Vector3d::UnitY()),
-    (Eigen::Affine3d)Eigen::Translation3d(0, 0.093, 0),
-    (Eigen::Affine3d)Eigen::Translation3d(0, 0, 0.09465)};
+// https://github.com/StanfordASL/PandaRobot.jl/blob/master/deps/Panda/panda.urdf
 
-const Eigen::Vector3d kUrdfAxis[6] = {
+// const Eigen::Affine3d kUrdfTrans[6] = {
+//     (Eigen::Affine3d)Eigen::Translation3d(0, 0, 0.089159),
+//     Eigen::Translation3d(0, 0.13585, 0) *
+//         Eigen::AngleAxisd(kHalfPi, Eigen::Vector3d::UnitY()),
+//     (Eigen::Affine3d)Eigen::Translation3d(0, -0.1197, 0.425),
+//     Eigen::Translation3d(0, 0, 0.39225) *
+//         Eigen::AngleAxisd(kHalfPi, Eigen::Vector3d::UnitY()),
+//     (Eigen::Affine3d)Eigen::Translation3d(0, 0.093, 0),
+//     (Eigen::Affine3d)Eigen::Translation3d(0, 0, 0.09465)};
+
+const Eigen::Affine3d kUrdfTrans[7] = {
+    (Eigen::Affine3d)Eigen::Translation3d(0, 0, 0.333),
+    Eigen::Translation3d(0.0, 0.0, 0.0) *
+        Eigen::AngleAxisd(-kHalfPi, Eigen::Vector3d::UnitX()),
+    Eigen::Translation3d(0, -0.316, 0) *
+        Eigen::AngleAxisd(kHalfPi, Eigen::Vector3d::UnitX()),
+    Eigen::Translation3d(0.0825, 0, 0) *
+        Eigen::AngleAxisd(kHalfPi, Eigen::Vector3d::UnitX()),
+    Eigen::Translation3d(-0.0825, 0.384, 0) *
+        Eigen::AngleAxisd(-kHalfPi, Eigen::Vector3d::UnitX()),
+    Eigen::Translation3d(0.0, 0.0, 0.0) *
+        Eigen::AngleAxisd(kHalfPi, Eigen::Vector3d::UnitX()),
+    Eigen::Translation3d(0.088, 0, 0) *
+        Eigen::AngleAxisd(kHalfPi, Eigen::Vector3d::UnitX())};
+
+// const Eigen::Vector3d kUrdfAxis[6] = {
+//     Eigen::Vector3d::UnitZ(),
+//     Eigen::Vector3d::UnitY(),
+//     Eigen::Vector3d::UnitY(),
+//     Eigen::Vector3d::UnitY(),
+//     Eigen::Vector3d::UnitZ(),
+//     Eigen::Vector3d::UnitY(),
+// };
+
+const Eigen::Vector3d kUrdfAxis[7] = {
+    Eigen::Vector3d::UnitZ(),
     Eigen::Vector3d::UnitZ(),
     Eigen::Vector3d::UnitY(),
-    Eigen::Vector3d::UnitY(),
-    Eigen::Vector3d::UnitY(),
+    Eigen::Vector3d::UnitZ(),
     Eigen::Vector3d::UnitZ(),
     Eigen::Vector3d::UnitY(),
+    Eigen::Vector3d::UnitZ(),
 };
 
 // Robot-related typedefs
@@ -91,7 +142,7 @@ typedef std::function<Jacobian(const Eigen::Vector3d&)> JacobianFunc;
 
 // Initial pose (where the gripper touches the object)
 const Pose kInitPose =
-    (Pose() << -kHalfPi, -2., -2., 4., -kHalfPi, 0.).finished();
+    (Pose() << -kHalfPi, -2., -2., 4., -kHalfPi, 0., 0.).finished();
 
 // Quality Metric
 // small float to make quadratic program positive semidefinite
@@ -147,7 +198,8 @@ const Pose kOptTrajWiggle = (Pose() << 5. * kDegToRad,
                              5. * kDegToRad,
                              45. * kDegToRad,
                              25. * kDegToRad,
-                             90. * kDegToRad)
+                             90. * kDegToRad,
+                             45. * kDegToRad)
                                 .finished();
 constexpr double kOptTolerance = 0.;
 constexpr nlopt_algorithm kOptAlgorithm = NLOPT_GN_CRS2_LM;
