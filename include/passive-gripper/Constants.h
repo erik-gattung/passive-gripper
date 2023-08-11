@@ -90,9 +90,10 @@ typedef Eigen::Matrix<double, 3, kNumDOFs> Jacobian;
 typedef std::function<Jacobian(const Eigen::Vector3d&)> JacobianFunc;
 
 // Initial pose (where the gripper touches the object)
+// const Pose kInitPose =
+//     (Pose() << -kHalfPi, -2., -2., 4., -kHalfPi, 0.).finished();
 const Pose kInitPose =
-    (Pose() << -kHalfPi, -2., -2., 4., -kHalfPi, 0.).finished();
-
+    (Pose() << -88.4 * kDegToRad, -148.1 * kDegToRad, -38.2 * kDegToRad, 94.1 * kDegToRad, -90.1 * kDegToRad, 1.6).finished();
 // Quality Metric
 // small float to make quadratic program positive semidefinite
 static constexpr double kWrenchReg = 1e-10;

@@ -165,7 +165,7 @@ Eigen::MatrixXd InitializeFinger(const ContactPoint contact_point,
   return res;
 }
 
-std::vector<Eigen::MatrixXd> InitializeFingers(
+/* std::vector<Eigen::MatrixXd> InitializeFingers(
     const std::vector<ContactPoint>& contact_points,
     const MeshDependentResource& mdr,
     const Eigen::Vector3d& effector_pos,
@@ -180,7 +180,118 @@ std::vector<Eigen::MatrixXd> InitializeFingers(
         contact_points[i], mdr, effector_pos, dist, par, n_finger_joints);
   }
   return res;
+} */
+
+
+double computeAngle(const Eigen::Vector2d& v1, const Eigen::Vector2d& v2, const Eigen::Vector2d& v3) {
+    // Calculate vectors from v1 to v2 and from v3 to v2
+    Eigen::Vector2d v21 = v2 - v1;
+    Eigen::Vector2d v23 = v2 - v3;
+    // Calculate the dot product of v21 and v23
+    double dotProduct = v21.dot(v23);
+    // Calculate the magnitudes of v21 and v23
+    double magnitudeV21 = v21.norm();
+    double magnitudeV23 = v23.norm();
+    // Calculate the cosine of the angle between v21 and v23
+    double cosAngle = dotProduct / (magnitudeV21 * magnitudeV23);
+    // Calculate the angle in radians and return
+    double angle = std::acos(cosAngle);
+    return angle;
 }
+
+std::vector<Eigen::MatrixXd> InitializeFingers(
+    const std::vector<ContactPoint>& contact_points,
+    const MeshDependentResource& mdr,
+    const Eigen::Vector3d& effector_pos,
+    size_t n_finger_joints) {
+  std::vector<double> dist;
+  std::vector<int> par;
+  ComputeConnectivityFrom(mdr, effector_pos, dist, par);
+
+  std::vector<Eigen::MatrixXd> res(contact_points.size());
+
+  // Determine angle alpha and allocations of contact points to mounting points
+  // x, z
+  // Eigen::Vector2d sym_2D(1.0, 2.0);
+  Eigen::Vector2d sym_2D( mdr.center_of_mass[0], mdr.center_of_mass[2]);
+  double d = 0.04;
+  std::vector<size_t> best_allocations;
+  double best_cost = std::numeric_limits<double>::max();
+  Eigen::Vector3d best_mounting_pos_0;
+  Eigen::Vector3d best_mounting_pos_1;
+  for (int alpha = 0; alpha < 180; alpha++) {
+    Eigen::Vector2d mounting_point_0(sym_2D[0] + (d / 2) * std::cos(alpha), sym_2D[1] + d / 2 * std::sin(alpha));
+    Eigen::Vector2d mounting_point_1(sym_2D[0] - (d / 2) * std::cos(alpha), sym_2D[1] - d / 2 * std::sin(alpha));
+    std::vector<double> angles_mounting_point_0;
+    std::vector<double> angles_mounting_point_1;
+    std::vector<size_t> contact_points_mount;
+    double cost = 0.0;
+    for (size_t i = 0; i < contact_points.size(); i++){
+      Eigen::Vector2d contact_point_2D(contact_points[i].position[0], contact_points[i].position[2]);
+      angles_mounting_point_0.push_back(std::abs(computeAngle(mounting_point_0, sym_2D, contact_point_2D)));
+      angles_mounting_point_1.push_back(std::abs(computeAngle(mounting_point_1, sym_2D, contact_point_2D)));
+    }
+    double mounting_point_0_least_angle = std::numeric_limits<double>::max();
+    size_t mounting_point_0_least_angle_index = 0;
+    for (size_t j = 0; j < angles_mounting_point_0.size(); j++) {
+      if (angles_mounting_point_0[j] < mounting_point_0_least_angle) {
+          mounting_point_0_least_angle = angles_mounting_point_0[j];
+          mounting_point_0_least_angle_index = j;
+      }
+    }
+    double mounting_point_1_least_angle = std::numeric_limits<double>::max();
+    size_t mounting_point_1_least_angle_index = 0;
+    for (size_t j = 0; j < angles_mounting_point_1.size(); j++) {
+      if ((angles_mounting_point_1[j] < mounting_point_1_least_angle) && (j != mounting_point_0_least_angle_index)) {
+          mounting_point_1_least_angle = angles_mounting_point_1[j];
+          mounting_point_1_least_angle_index = j;
+      }
+    }
+    for (size_t j = 0; j < angles_mounting_point_1.size(); j++) {
+      if (j == mounting_point_0_least_angle_index) {
+        contact_points_mount.push_back(0);
+        cost += mounting_point_0_least_angle;
+        continue;
+      }
+      if (j == mounting_point_1_least_angle_index) {
+        contact_points_mount.push_back(1);
+        cost += mounting_point_1_least_angle;
+        continue;
+      }
+      if (angles_mounting_point_0[j] < angles_mounting_point_1[j]){
+        contact_points_mount.push_back(0);
+        cost += angles_mounting_point_0[j];
+      } else {
+        contact_points_mount.push_back(1);
+        cost += angles_mounting_point_1[j];
+      }
+    }
+    if (cost < best_cost){
+      best_cost = cost;
+      best_allocations = contact_points_mount;
+      best_mounting_pos_0 = effector_pos;
+      best_mounting_pos_0[0] += (d / 2) * std::cos(alpha);
+      best_mounting_pos_0[2] += (d / 2) * std::sin(alpha);
+      best_mounting_pos_1 = effector_pos;
+      best_mounting_pos_1[0] -= (d / 2) * std::cos(alpha);
+      best_mounting_pos_1[2] -= (d / 2) * std::sin(alpha);
+    }
+  }
+
+
+  for (size_t i = 0; i < contact_points.size(); i++) {
+    Eigen::Vector3d mounting_pos;
+    if (best_allocations[i] == 1) {
+      mounting_pos = best_mounting_pos_1;
+    } else {
+      mounting_pos = best_mounting_pos_0;
+    }
+    res[i] = InitializeFinger(
+        contact_points[i], mdr, mounting_pos, dist, par, n_finger_joints);
+  }
+  return res;
+}
+
 
 Trajectory InitializeTrajectory(const std::vector<Eigen::MatrixXd>& fingers,
                                 const Pose& init_pose) {
